@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🐍 Multiplayer Snake</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d1a;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+      color: #eee;
+    }
+
+    h1 {
+      color: #00ff88;
+      font-size: 2rem;
+      letter-spacing: 4px;
+      margin-bottom: 6px;
+      text-shadow: 0 0 20px #00ff88;
+    }
+
+    #subtitle {
+      color: #556;
+      font-size: 0.8rem;
+      margin-bottom: 12px;
+      letter-spacing: 2px;
+    }
+
+    #main {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    #gameWrap {
+      position: relative;
+    }
+
+    canvas {
+      border: 2px solid #00ff8844;
+      background: #111122;
+      box-shadow: 0 0 30px #00ff8822;
+      display: block;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: #0d0d1acc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    #overlay h2 { color: #00ff88; font-size: 1.6rem; letter-spacing: 3px; }
+    #overlay p  { color: #aaa; font-size: 0.85rem; }
+
+    input[type=text] {
+      background: #1a1a2e;
+      border: 1px solid #00ff8866;
+      color: #00ff88;
+      padding: 10px 16px;
+      font-size: 1rem;
+      font-family: inherit;
+      border-radius: 4px;
+      outline: none;
+      width: 220px;
+      text-align: center;
+    }
+    input[type=text]::placeholder { color: #445; }
+    input[type=text]:focus { border-color: #00ff88; box-shadow: 0 0 8px #00ff8866; }
+
+    button {
+      background: #00ff8822;
+      border: 1px solid #00ff88;
+      color: #00ff88;
+      padding: 10px 28px;
+      font-size: 1rem;
+      font-family: inherit;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: background 0.2s;
+    }
+    button:hover { background: #00ff8844; }
+
+    #sidebar {
+      width: 200px;
+      min-width: 160px;
+    }
+
+    #scoreboard {
+      background: #111122;
+      border: 1px solid #00ff8833;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    #scoreboard h3 {
+      color: #00ff88;
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #00ff8833;
+      padding-bottom: 6px;
+    }
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 0.8rem;
+    }
+    .score-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .score-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ccc; }
+    .score-pts  { color: #00ff88; font-weight: bold; }
+    .score-dead { opacity: 0.4; }
+
+    #controls {
+      background: #111122;
+      border: 1px solid #00ff8833;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 0.75rem;
+      color: #556;
+      line-height: 1.8;
+    }
+    #controls h3 {
+      color: #00ff88;
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+    kbd {
+      background: #1a1a2e;
+      border: 1px solid #334;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+
+    #status {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: #445;
+      letter-spacing: 1px;
+    }
+
+    #deadBanner {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: #0d0d1a99;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    #deadBanner h2 { color: #ff4466; font-size: 1.4rem; text-shadow: 0 0 20px #ff4466; }
+    #deadBanner p  { color: #aaa; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+
+<h1>🐍 SNAKE.IO</h1>
+<div id="subtitle">REAL-TIME MULTIPLAYER</div>
+
+<div id="main">
+  <div id="gameWrap">
+    <canvas id="c" width="800" height="600"></canvas>
+
+    <!-- Join overlay -->
+    <div id="overlay">
+      <h2>🐍 JOIN GAME</h2>
+      <p>Enter your name and press Play</p>
+      <input id="nameInput" type="text" maxlength="14" placeholder="Your name..." autofocus />
+      <button id="joinBtn">▶ PLAY</button>
+      <p style="color:#334; font-size:0.75rem">Arrow keys or WASD to move</p>
+    </div>
+
+    <!-- Dead overlay -->
+    <div id="deadBanner">
+      <h2>💀 YOU DIED</h2>
+      <p id="finalScore"></p>
+      <button id="respawnBtn">↩ RESPAWN</button>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div id="scoreboard">
+      <h3>🏆 SCORES</h3>
+      <div id="scoreList"><div style="color:#334;font-size:0.75rem">Waiting for players…</div></div>
+    </div>
+    <div id="controls">
+      <h3>🎮 CONTROLS</h3>
+      <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> Move<br>
+      or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+    </div>
+  </div>
+</div>
+
+<div id="status">⚡ Connecting…</div>
+
+<script>
+  const canvas   = document.getElementById('c');
+  const ctx      = canvas.getContext('2d');
+  const overlay  = document.getElementById('overlay');
+  const deadBanner = document.getElementById('deadBanner');
+  const nameInput  = document.getElementById('nameInput');
+  const joinBtn    = document.getElementById('joinBtn');
+  const respawnBtn = document.getElementById('respawnBtn');
+  const scoreList  = document.getElementById('scoreList');
+  const statusEl   = document.getElementById('status');
+
+  const CELL = 20, COLS = 40, ROWS = 30;
+  let myId = null, joined = false, isDead = false;
+  let gameState = null;
+
+  // WebSocket
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${proto}://${location.host}/game`);
+
+  ws.onopen = () => {
+    statusEl.textContent = '✅ Connected — Enter your name to join!';
+  };
+
+  ws.onclose = () => {
+    statusEl.textContent = '❌ Disconnected. Refresh to reconnect.';
+  };
+
+  ws.onerror = () => {
+    statusEl.textContent = '❌ Connection error.';
+  };
+
+  ws.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'welcome') {
+      myId = data.id;
+      return;
+    }
+    // Game state update
+    gameState = data;
+    render(data);
+    updateScoreboard(data);
+    checkDeath(data);
+  };
+
+  function joinGame() {
+    const name = nameInput.value.trim() || 'Player';
+    ws.send(JSON.stringify({ type: 'join', name }));
+    joined = true;
+    overlay.style.display = 'none';
+    statusEl.textContent = '🎮 Use arrow keys or WASD!';
+  }
+
+  joinBtn.addEventListener('click', joinGame);
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') joinGame(); });
+
+  respawnBtn.addEventListener('click', () => {
+    ws.send(JSON.stringify({ type: 'respawn' }));
+    deadBanner.style.display = 'none';
+    isDead = false;
+    statusEl.textContent = '🎮 Back in the game!';
+  });
+
+  document.addEventListener('keydown', e => {
+    if (!joined) return;
+    const map = {
+      ArrowUp:'UP', ArrowDown:'DOWN', ArrowLeft:'LEFT', ArrowRight:'RIGHT',
+      w:'UP', s:'DOWN', a:'LEFT', d:'RIGHT',
+      W:'UP', S:'DOWN', A:'LEFT', D:'RIGHT'
+    };
+    if (map[e.key]) {
+      ws.send(JSON.stringify({ type: 'dir', dir: map[e.key] }));
+      e.preventDefault();
+    }
+  });
+
+  // Mobile swipe support
+  let touchStartX = 0, touchStartY = 0;
+  canvas.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  canvas.addEventListener('touchend', e => {
+    if (!joined) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      ws.send(JSON.stringify({ type: 'dir', dir: dx > 0 ? 'RIGHT' : 'LEFT' }));
+    } else {
+      ws.send(JSON.stringify({ type: 'dir', dir: dy > 0 ? 'DOWN' : 'UP' }));
+    }
+  }, { passive: true });
+
+  function render(state) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Grid
+    ctx.strokeStyle = '#ffffff08';
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x <= COLS; x++) {
+      ctx.beginPath(); ctx.moveTo(x*CELL, 0); ctx.lineTo(x*CELL, ROWS*CELL); ctx.stroke();
+    }
+    for (let y = 0; y <= ROWS; y++) {
+      ctx.beginPath(); ctx.moveTo(0, y*CELL); ctx.lineTo(COLS*CELL, y*CELL); ctx.stroke();
+    }
+
+    // Food
+    if (state.food) {
+      const fx = state.food.x * CELL, fy = state.food.y * CELL;
+      ctx.shadowColor = '#ff0044';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = '#ff0044';
+      ctx.beginPath();
+      ctx.arc(fx + CELL/2, fy + CELL/2, CELL/2 - 2, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // Snakes
+    for (const p of state.players) {
+      const alpha = p.alive ? 1 : 0.3;
+      ctx.globalAlpha = alpha;
+
+      p.body.forEach((seg, i) => {
+        const x = seg.x * CELL, y = seg.y * CELL;
+        if (i === 0) {
+          // Head
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = p.color;
+          ctx.fillRect(x+1, y+1, CELL-2, CELL-2);
+          // Eyes
+          ctx.fillStyle = '#000';
+          ctx.fillRect(x+4, y+4, 3, 3);
+          ctx.fillRect(x+12, y+4, 3, 3);
+          ctx.shadowBlur = 0;
+        } else {
+          // Body
+          const fade = Math.max(0.4, 1 - i * 0.015);
+          ctx.fillStyle = p.color + Math.floor(fade * 255).toString(16).padStart(2,'0');
+          ctx.fillRect(x+2, y+2, CELL-4, CELL-4);
+        }
+      });
+
+      // Name tag above head
+      if (p.body.length > 0) {
+        const hx = p.body[0].x * CELL, hy = p.body[0].y * CELL;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.font = 'bold 10px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.name, hx + CELL/2, hy - 3);
+      }
+
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function updateScoreboard(state) {
+    const sorted = [...state.players].sort((a,b) => b.score - a.score);
+    scoreList.innerHTML = sorted.map(p => `
+      <div class="score-row ${p.alive ? '' : 'score-dead'}">
+        <div class="score-dot" style="background:${p.color};box-shadow:0 0 6px ${p.color}"></div>
+        <div class="score-name">${escHtml(p.name)}${p.id === myId ? ' ★' : ''}</div>
+        <div class="score-pts">${p.score}</div>
+      </div>
+    `).join('') || '<div style="color:#334;font-size:0.75rem">No players yet</div>';
+  }
+
+  function checkDeath(state) {
+    if (!joined || !myId) return;
+    const me = state.players.find(p => p.id === myId);
+    if (me && !me.alive && !isDead) {
+      isDead = true;
+      deadBanner.style.display = 'flex';
+      document.getElementById('finalScore').textContent = `Score: ${me.score} pts`;
+    }
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Initial draw
+  ctx.fillStyle = '#111122';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+</script>
+</body>
+</html>
